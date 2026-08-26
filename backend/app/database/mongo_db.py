@@ -85,8 +85,8 @@ def get_conversation(session_id: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def append_message(session_id: str, role: str, content: str, metadata: Dict = None) -> bool:
-    """Append a message to a conversation's message list."""
+def append_message(session_id: str, role: str, content: str, metadata: Dict = None, user_id: str = "default_user") -> bool:
+    """Append a message to a conversation's message list, creating the session if it doesn't exist."""
     db = _get_db()
     if db is None:
         return False
@@ -103,7 +103,17 @@ def append_message(session_id: str, role: str, content: str, metadata: Dict = No
             {
                 "$push": {"messages": message},
                 "$set": {"updated_at": datetime.utcnow().isoformat()},
-            }
+                "$setOnInsert": {
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "title": (content[:40] + ("..." if len(content) > 40 else "")) if role == "user" else "Voice Session",
+                    "created_at": datetime.utcnow().isoformat(),
+                    "call_id": None,
+                    "lead_id": None,
+                    "status": "active",
+                }
+            },
+            upsert=True
         )
         return True
     except Exception as e:

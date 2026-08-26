@@ -141,6 +141,8 @@ export default function DashboardPage() {
     } catch (e) {
       setTranscripts([]);
     }
+    // Refresh sidebar conversation list
+    loadConversations();
   };
 
   // ─── Voice Synthesis (TTS) & Recognition (STT) ──────────────────────────
@@ -239,17 +241,41 @@ export default function DashboardPage() {
   const executeTurnWithHistory = async (historyTranscripts) => {
     setAgentStatus('thinking');
     try {
+      let currentSession = activeSession;
+      if (!currentSession) {
+        try {
+          const firstUserMsg = historyTranscripts.find(t => t.speaker === 'prospect')?.text || 'New Session';
+          currentSession = await hermionApi.createConversation(user?.id || 'demo-user', firstUserMsg.slice(0, 35));
+          setConversations(prev => [currentSession, ...prev]);
+          setActiveSession(currentSession);
+        } catch (e) {
+          currentSession = { session_id: 'session-' + Date.now(), title: 'New Voice Session', messages: [] };
+          setActiveSession(currentSession);
+        }
+      }
+
       const history = historyTranscripts.map(t => ({
         role: t.speaker === 'hermion' ? 'assistant' : 'user',
         content: t.text,
       }));
-      const res = await hermionApi.sendLLMTurn(history, '', currentCallId, activeSession?.session_id || '');
+      const res = await hermionApi.sendLLMTurn(history, '', currentCallId, currentSession?.session_id || '');
       const reply = res.choices?.[0]?.message?.content || 'I understand. How can I help further?';
       const toolsUsed = res.x_executed_tools || [];
 
       setTranscripts(prev => [...prev, { speaker: 'hermion', text: reply, tools_used: toolsUsed }]);
+      setAgentStatus('idle');
       if (toolsUsed.length > 0) setPanelOpen(true);
       speakText(reply);
+
+      // Auto update conversation title on first turn
+      if (historyTranscripts.length <= 2 && currentSession && user?.id) {
+        const titleText = historyTranscripts.find(t => t.speaker === 'prospect')?.text;
+        if (titleText) {
+          const shortTitle = titleText.slice(0, 35) + (titleText.length > 35 ? '...' : '');
+          hermionApi.renameConversation(currentSession.session_id, user.id, shortTitle).catch(() => {});
+          setConversations(prev => prev.map(c => c.session_id === currentSession.session_id ? { ...c, title: shortTitle } : c));
+        }
+      }
     } catch (e) {
       console.error('Turn error:', e);
       setAgentStatus('idle');
@@ -264,7 +290,7 @@ export default function DashboardPage() {
         setConversations(prev => [session, ...prev]);
         setActiveSession(session);
       } catch (err) {
-        session = { session_id: 'local-' + Date.now(), title: 'New Voice Session', messages: [] };
+        session = { session_id: 'session-' + Date.now(), title: 'New Voice Session', messages: [] };
         setActiveSession(session);
       }
     }
@@ -298,7 +324,7 @@ export default function DashboardPage() {
     speakText(welcome.text);
 
     // Save welcome message to MongoDB session
-    if (session?.session_id && !session.session_id.startsWith('local')) {
+    if (session?.session_id) {
       hermionApi.appendMessage(session.session_id, 'assistant', welcome.text).catch(() => {});
     }
   };
@@ -325,13 +351,14 @@ export default function DashboardPage() {
     }
     // Rename session based on first user turn
     const firstUser = transcripts.find(t => t.speaker === 'prospect');
-    if (firstUser && activeSession && !activeSession.session_id?.startsWith('local')) {
-      const newTitle = firstUser.text.slice(0, 40) + (firstUser.text.length > 40 ? '...' : '');
+    if (firstUser && activeSession && user?.id) {
+      const newTitle = firstUser.text.slice(0, 35) + (firstUser.text.length > 35 ? '...' : '');
       hermionApi.renameConversation(activeSession.session_id, user.id, newTitle).catch(() => {});
       setConversations(prev => prev.map(c =>
         c.session_id === activeSession.session_id ? { ...c, title: newTitle } : c
       ));
     }
+    loadConversations();
     loadCrm();
   };
 
@@ -343,6 +370,19 @@ export default function DashboardPage() {
 
     // Stop previous speech if any
     if (window.speechSynthesis) window.speechSynthesis.cancel();
+
+    // Ensure session exists
+    let session = activeSession;
+    if (!session) {
+      try {
+        session = await hermionApi.createConversation(user?.id || 'demo-user', userText.slice(0, 35));
+        setConversations(prev => [session, ...prev]);
+        setActiveSession(session);
+      } catch (err) {
+        session = { session_id: 'session-' + Date.now(), title: userText.slice(0, 35), messages: [] };
+        setActiveSession(session);
+      }
+    }
 
     const newTs = [...transcripts, { speaker: 'prospect', text: userText }];
     setTranscripts(newTs);
@@ -602,7 +642,7 @@ export default function DashboardPage() {
                     ) : (
                       <button onClick={endCall}
                         className="flex items-center gap-2 px-8 py-3.5 rounded-xl bg-red-600/20 text-red-400 border border-red-500/40 font-bold hover:bg-red-600 hover:text-white transition-all shadow-[0_0_20px_rgba(220,38,38,0.2)]">
-                        âœ• End Call
+                        ✖ End Call
                       </button>
                     )}
                   </div>
@@ -613,7 +653,7 @@ export default function DashboardPage() {
               <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
                 {transcripts.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-textMuted/40 text-sm font-mono text-center">
-                    <div className="text-4xl mb-3 opacity-30">ðŸ’¬</div>
+                    <div className="text-4xl mb-3 opacity-30">💬</div>
                     Connect to a call and start speaking to see the transcript here...
                   </div>
                 ) : (
@@ -636,7 +676,7 @@ export default function DashboardPage() {
                             <div className="flex flex-wrap gap-1.5 px-2 mt-1">
                               {t.tools_used.map((tool, i) => (
                                 <span key={i} className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20">
-                                  âš¡ {tool}
+                                  ⚡ {tool}
                                 </span>
                               ))}
                             </div>
@@ -645,6 +685,22 @@ export default function DashboardPage() {
                       </div>
                     );
                   })
+                )}
+                {/* Thinking indicator */}
+                {agentStatus === 'thinking' && (
+                  <div className="flex justify-start">
+                    <div className="max-w-[75%] flex flex-col gap-1 items-start">
+                      <span className="text-[10px] font-mono text-textMuted/50 uppercase tracking-wider px-2">HERMION AI</span>
+                      <div className="px-5 py-3.5 rounded-3xl rounded-tl-sm bg-surface/80 border border-accent/20 shadow-lg flex items-center gap-2">
+                        <span className="inline-flex gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </span>
+                        <span className="text-xs text-textMuted font-mono">Thinking...</span>
+                      </div>
+                    </div>
+                  </div>
                 )}
                 <div ref={transcriptEndRef} />
               </div>
@@ -659,8 +715,7 @@ export default function DashboardPage() {
                     type="text"
                     value={userInput}
                     onChange={e => setUserInput(e.target.value)}
-                    placeholder={isConnected ? "Type your message to HERMION..." : "Start a call first, then type here..."}
-                    disabled={!isConnected && transcripts.length === 0}
+                    placeholder="Type your message to HERMION..."
                     className="flex-1 bg-transparent text-white placeholder:text-textMuted/40 text-sm outline-none"
                   />
                   <button

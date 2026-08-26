@@ -9,6 +9,7 @@ Orchestrates each conversational turn:
   5. Return clean TTS-ready plain text
 """
 
+import re
 import httpx
 from typing import List, Dict, Any, Tuple
 
@@ -55,6 +56,15 @@ TOOLS AVAILABLE (already executed — context injected below):
 """
 
 
+def _strip_think_blocks(text: str) -> str:
+    """Remove <think>...</think> blocks including truncated unclosed ones."""
+    # Remove complete <think>...</think> blocks (including newlines)
+    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+    # Remove any remaining unclosed <think> block (truncated by max_tokens)
+    text = re.sub(r'<think>.*$', '', text, flags=re.DOTALL)
+    return text.strip()
+
+
 class SalesAgent:
     def __init__(self):
         self.models = settings.HERMION_MODELS
@@ -68,19 +78,17 @@ class SalesAgent:
             "Content-Type": "application/json"
         }
         payload = {
-            "model": model_name or "openai/gpt-oss-20b",
+            "model": model_name,
             "messages": messages,
             "temperature": 0.45,
-            "max_tokens": 160,
+            "max_tokens": 180,
         }
-        with httpx.Client(timeout=8.0) as client:
+        with httpx.Client(timeout=10.0) as client:
             resp = client.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers)
             if resp.status_code != 200:
-                raise RuntimeError(f"Groq error [{resp.status_code}]: {resp.text[:120]}")
+                raise RuntimeError(f"Groq error [{resp.status_code}]: {resp.text[:200]}")
             content = resp.json()["choices"][0]["message"]["content"]
-            if "<think>" in content and "</think>" in content:
-                content = content.split("</think>")[-1].strip()
-            return content
+            return _strip_think_blocks(content)
 
     def _call_openrouter(self, messages: List[Dict[str, str]], model_name: str) -> str:
         if not settings.OPENROUTER_API_KEY:
@@ -92,24 +100,30 @@ class SalesAgent:
             "X-Title": "HERMION Sales Agent"
         }
         payload = {
-            "model": model_name or "meta-llama/llama-3.3-70b-instruct",
+            "model": model_name,
             "messages": messages,
             "temperature": 0.45,
-            "max_tokens": 160,
+            "max_tokens": 180,
         }
-        with httpx.Client(timeout=10.0) as client:
+        with httpx.Client(timeout=12.0) as client:
             resp = client.post("https://openrouter.ai/api/v1/chat/completions", json=payload, headers=headers)
+            if resp.status_code == 429:
+                raise RuntimeError(f"OpenRouter rate-limited [{model_name}]")
             if resp.status_code != 200:
-                raise RuntimeError(f"OpenRouter error [{resp.status_code}]: {resp.text[:120]}")
+                raise RuntimeError(f"OpenRouter error [{resp.status_code}]: {resp.text[:200]}")
             content = resp.json()["choices"][0]["message"]["content"]
-            if "<think>" in content and "</think>" in content:
-                content = content.split("</think>")[-1].strip()
-            return content
+            return _strip_think_blocks(content)
 
     def _call_llm_chain(self, messages: List[Dict[str, str]]) -> str:
-        """Execute turn across multi-provider waterfall chain: Groq -> OpenRouter -> OpenAI."""
-        # 1. Try Groq first
-        groq_models = ["openai/gpt-oss-20b", "groq/compound-mini"]
+        """Execute turn across multi-provider waterfall chain: Groq -> OpenRouter -> Heuristic."""
+        # 1. Try Groq first — only confirmed-working models as of 2026-08
+        groq_models = [
+            "qwen/qwen3.8-27b",        # best quality, concise, follows persona
+            "qwen/qwen3.6-27b",        # solid fallback
+            "openai/gpt-oss-20b",      # fast, reliable
+            "openai/gpt-oss-120b",     # powerful, may have charmap issues on Windows print
+            "groq/compound-mini",      # ultra-fast ultra-small
+        ]
         for g_model in groq_models:
             try:
                 text = self._call_groq(messages, g_model)
@@ -117,10 +131,18 @@ class SalesAgent:
                     print(f"[Agent] Responded via Groq ({g_model})")
                     return text
             except Exception as e:
-                print(f"[Agent Fallback] Groq ({g_model}) error: {e}")
+                print(f"[Agent Fallback] Groq ({g_model}) error: {str(e)[:120]}")
 
-        # 2. Try OpenRouter fallback
-        or_models = ["meta-llama/llama-3.3-70b-instruct", "mistralai/mistral-7b-instruct", "openai/gpt-4o-mini"]
+        # 2. Try OpenRouter fallback — confirmed-working free models
+        or_models = [
+            "nvidia/nemotron-3-super-120b-a12b:free",
+            "nvidia/nemotron-3-ultra-550b-a55b:free",
+            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+            "nvidia/nemotron-3.5-lightning:free",
+            "google/gemma-4-31b-it:free",
+            "google/gemma-4-26b-a4b-it:free",
+            "minimax/minimax-m2.7:free",
+        ]
         for or_model in or_models:
             try:
                 text = self._call_openrouter(messages, or_model)
@@ -128,7 +150,7 @@ class SalesAgent:
                     print(f"[Agent] Responded via OpenRouter ({or_model})")
                     return text
             except Exception as e:
-                print(f"[Agent Fallback] OpenRouter ({or_model}) error: {e}")
+                print(f"[Agent Fallback] OpenRouter ({or_model}) error: {str(e)[:120]}")
 
         raise RuntimeError("All LLM providers failed")
 
