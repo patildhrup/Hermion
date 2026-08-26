@@ -23,7 +23,8 @@ class Database:
                 print(f"[DB] Supabase init failed: {e}. Falling back to SQLite.")
                 self.use_supabase = False
 
-        self.db_path = "hermion_local.db"
+        import os
+        self.db_path = "/tmp/hermion_local.db" if os.environ.get("VERCEL") else "hermion_local.db"
         self._init_sqlite()
 
         # Only seed demo data in SQLite fallback mode
