@@ -1,8 +1,6 @@
 import os
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from app.config.config import settings
 from app.api.routes import api_router
@@ -14,7 +12,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS configuration
+# CORS configuration — allow all origins so frontend (any domain) can reach the API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,20 +34,19 @@ except Exception as e:
 app.include_router(api_router)
 app.include_router(api_router, prefix="/api")
 
-# ── Static Frontend Serving ───────────────────────────────────────────────
-frontend_dist_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
-if os.path.exists(frontend_dist_path):
-    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist_path, "assets")), name="assets")
 
-    @app.get("/{full_path:path}")
-    async def serve_frontend(full_path: str):
-        if full_path.startswith("api/") or full_path in ["llm", "chat/completions", "health"]:
-            raise HTTPException(status_code=404)
-        file_p = os.path.join(frontend_dist_path, full_path)
-        if os.path.exists(file_p) and os.path.isfile(file_p):
-            return FileResponse(file_p)
-        return FileResponse(os.path.join(frontend_dist_path, "index.html"))
+@app.get("/")
+async def root():
+    """Root endpoint — confirms backend is live."""
+    return {
+        "status": "ok",
+        "service": "HERMION AI Voice Sales Agent API",
+        "version": "1.0.0",
+        "docs": "/docs",
+    }
+
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host=settings.HOST, port=settings.PORT, reload=True)
+    uvicorn.run("app.main:app", host=settings.HOST, port=settings.PORT, reload=True)
+
