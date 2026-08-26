@@ -16,20 +16,20 @@ def _get_db():
     global _client, _db
     if _db is None:
         if not settings.MONGO_URL:
-            print("[MongoDB] MONGO_URL not set — conversation history disabled.")
+            print("[MongoDB] MONGO_URL not set - conversation history disabled.")
             return None
         try:
             from pymongo import MongoClient
-            _client = MongoClient(settings.MONGO_URL, serverSelectionTimeoutMS=5000)
+            _client = MongoClient(settings.MONGO_URL, serverSelectionTimeoutMS=8000)
             _client.server_info()  # raises if unreachable
             _db = _client["hermion-db"]
             # Ensure useful indexes
             _db["conversations"].create_index("session_id")
             _db["conversations"].create_index("user_id")
             _db["conversations"].create_index("created_at")
-            print(f"[MongoDB] Connected → hermion-db")
+            print("[MongoDB] Connected successfully to hermion-db")
         except Exception as e:
-            print(f"[MongoDB] Connection failed: {e}")
+            print(f"[MongoDB] Connection warning: {e}")
             _db = None
     return _db
 

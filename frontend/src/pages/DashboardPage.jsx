@@ -259,8 +259,14 @@ export default function DashboardPage() {
   const startCall = async () => {
     let session = activeSession;
     if (!session) {
-      session = await newConversation().then(() => null);
-      return;
+      try {
+        session = await hermionApi.createConversation(user?.id || 'demo-user', 'New Voice Session');
+        setConversations(prev => [session, ...prev]);
+        setActiveSession(session);
+      } catch (err) {
+        session = { session_id: 'local-' + Date.now(), title: 'New Voice Session', messages: [] };
+        setActiveSession(session);
+      }
     }
 
     try {
@@ -290,6 +296,11 @@ export default function DashboardPage() {
     const welcome = { speaker: 'hermion', text: "Hi there! I'm HERMION from EchoSphere AI. How can I help your sales team today?" };
     setTranscripts(prev => [...prev, welcome]);
     speakText(welcome.text);
+
+    // Save welcome message to MongoDB session
+    if (session?.session_id && !session.session_id.startsWith('local')) {
+      hermionApi.appendMessage(session.session_id, 'assistant', welcome.text).catch(() => {});
+    }
   };
 
   const endCall = async () => {

@@ -59,43 +59,78 @@ class SalesAgent:
     def __init__(self):
         self.models = settings.HERMION_MODELS
 
-    # ── LLM call with model-fallback chain ────────────────────────────────
-    def _call_llm(self, messages: List[Dict[str, str]], model_name: str) -> str:
-        headers = {"Content-Type": "application/json"}
+    # ── LLM call with multi-provider fallback chain ───────────────────────
+    def _call_groq(self, messages: List[Dict[str, str]], model_name: str) -> str:
+        if not settings.GROQ_API_KEY:
+            raise RuntimeError("GROQ_API_KEY not configured")
+        headers = {
+            "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
         payload = {
+            "model": model_name or "openai/gpt-oss-20b",
             "messages": messages,
             "temperature": 0.45,
             "max_tokens": 160,
         }
-
-        # Route to the right provider
-        if settings.GROQ_API_KEY:
-            url = "https://api.groq.com/openai/v1/chat/completions"
-            headers["Authorization"] = f"Bearer {settings.GROQ_API_KEY}"
-            payload["model"] = model_name
-        elif settings.OPENROUTER_API_KEY:
-            url = "https://openrouter.ai/api/v1/chat/completions"
-            headers["Authorization"] = f"Bearer {settings.OPENROUTER_API_KEY}"
-            headers["HTTP-Referer"] = "https://hermion.ai"
-            headers["X-Title"] = "HERMION Sales Agent"
-            payload["model"] = model_name
-        elif settings.OPENAI_API_KEY:
-            url = "https://api.openai.com/v1/chat/completions"
-            headers["Authorization"] = f"Bearer {settings.OPENAI_API_KEY}"
-            payload["model"] = "gpt-4o-mini"
-        else:
-            raise RuntimeError("No LLM provider configured")
-
-        with httpx.Client(timeout=12.0) as client:
-            resp = client.post(url, json=payload, headers=headers)
-            if resp.status_code == 429:
-                raise RuntimeError(f"429 rate-limit on {model_name}")
-            resp.raise_for_status()
+        with httpx.Client(timeout=8.0) as client:
+            resp = client.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers)
+            if resp.status_code != 200:
+                raise RuntimeError(f"Groq error [{resp.status_code}]: {resp.text[:120]}")
             content = resp.json()["choices"][0]["message"]["content"]
-            # Clean thinking tags if present
             if "<think>" in content and "</think>" in content:
                 content = content.split("</think>")[-1].strip()
             return content
+
+    def _call_openrouter(self, messages: List[Dict[str, str]], model_name: str) -> str:
+        if not settings.OPENROUTER_API_KEY:
+            raise RuntimeError("OPENROUTER_API_KEY not configured")
+        headers = {
+            "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://hermion.ai",
+            "X-Title": "HERMION Sales Agent"
+        }
+        payload = {
+            "model": model_name or "meta-llama/llama-3.3-70b-instruct",
+            "messages": messages,
+            "temperature": 0.45,
+            "max_tokens": 160,
+        }
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.post("https://openrouter.ai/api/v1/chat/completions", json=payload, headers=headers)
+            if resp.status_code != 200:
+                raise RuntimeError(f"OpenRouter error [{resp.status_code}]: {resp.text[:120]}")
+            content = resp.json()["choices"][0]["message"]["content"]
+            if "<think>" in content and "</think>" in content:
+                content = content.split("</think>")[-1].strip()
+            return content
+
+    def _call_llm_chain(self, messages: List[Dict[str, str]]) -> str:
+        """Execute turn across multi-provider waterfall chain: Groq -> OpenRouter -> OpenAI."""
+        # 1. Try Groq first
+        groq_models = ["openai/gpt-oss-20b", "groq/compound-mini"]
+        for g_model in groq_models:
+            try:
+                text = self._call_groq(messages, g_model)
+                if text:
+                    print(f"[Agent] Responded via Groq ({g_model})")
+                    return text
+            except Exception as e:
+                print(f"[Agent Fallback] Groq ({g_model}) error: {e}")
+
+        # 2. Try OpenRouter fallback
+        or_models = ["meta-llama/llama-3.3-70b-instruct", "mistralai/mistral-7b-instruct", "openai/gpt-4o-mini"]
+        for or_model in or_models:
+            try:
+                text = self._call_openrouter(messages, or_model)
+                if text:
+                    print(f"[Agent] Responded via OpenRouter ({or_model})")
+                    return text
+            except Exception as e:
+                print(f"[Agent Fallback] OpenRouter ({or_model}) error: {e}")
+
+        raise RuntimeError("All LLM providers failed")
 
     # ── Heuristic fallback when ALL providers fail ─────────────────────────
     def _heuristic_fallback(self, last_utt: str, context: List[str]) -> str:
@@ -201,32 +236,22 @@ class SalesAgent:
         # Keep last 8 turns of conversation history for context continuity
         llm_messages.extend(messages[-8:])
 
-        # Model-fallback chain
+        # Model-fallback chain (Groq -> OpenRouter -> Heuristic)
         response_text: str | None = None
-        for model in self.models:
-            try:
-                response_text = self._call_llm(llm_messages, model)
-                print(f"[Agent] Responded with model: {model}")
-                if response_text:
-                    break
-            except RuntimeError as e:
-                print(f"[Agent Fallback] {e} → trying next model")
-                continue
-            except Exception as e:
-                print(f"[Agent Error] {model}: {e}")
-                continue
-
-        if not response_text:
+        try:
+            response_text = self._call_llm_chain(llm_messages)
+        except Exception as e:
+            print(f"[Agent Fallback] All LLM providers failed ({e}), using heuristic.")
             response_text = self._heuristic_fallback(last_utt, retrieved_ctx)
-            print("[Agent] Used heuristic fallback")
 
         # Strip any stray markdown that would sound bad in TTS
         for ch in ("*", "#", "`", "_", "**", "##"):
             response_text = response_text.replace(ch, "")
         
-        # Replace special unicode dashes/quotes with standard ASCII for clean TTS & logging
+        # Replace special unicode dashes/quotes/spaces with standard ASCII for clean TTS & logging
         response_text = response_text.replace("—", " - ").replace("–", "-").replace("\u2011", "-")
         response_text = response_text.replace("“", '"').replace("”", '"').replace("’", "'").replace("‘", "'")
+        response_text = response_text.replace("\u202f", " ").replace("\u00a0", " ")
         response_text = response_text.strip()
 
         return response_text, executed_tools
