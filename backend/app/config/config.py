@@ -2,9 +2,20 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env file
-env_path = Path(__file__).parent / ".env"
-load_dotenv(dotenv_path=env_path)
+# Load .env file (check app/.env, parent .env, current directory)
+possible_env_paths = [
+    Path(__file__).parent.parent / ".env",
+    Path(__file__).parent / ".env",
+    Path.cwd() / "app" / ".env",
+    Path.cwd() / ".env"
+]
+for p in possible_env_paths:
+    if p.exists():
+        load_dotenv(dotenv_path=p, override=True)
+        break
+else:
+    load_dotenv()
+
 
 class Settings:
     PORT: int = int(os.getenv("PORT", "8000"))
@@ -43,6 +54,9 @@ class Settings:
     # Qdrant
     QDRANT_URL: str = os.getenv("QDRANT_URL", "")
     QDRANT_API_KEY: str = os.getenv("QDRANT_API_KEY", "")
+
+    # MongoDB
+    MONGO_URL: str = os.getenv("MONGO_URL", "")
 
     def get_public_url(self) -> str:
         # Re-read HERMION_PUBLIC_URL from env every time, per requirement

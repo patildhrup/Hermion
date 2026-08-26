@@ -12,10 +12,10 @@ Orchestrates each conversational turn:
 import httpx
 from typing import List, Dict, Any, Tuple
 
-from config.config import settings
+from app.config.config import settings
 # Import the MCP server – tools are invoked directly as Python functions here,
 # meaning zero network overhead while still registering on the MCP protocol.
-from mcp_service.mcp_server import (
+from app.mcp_service.mcp_server import (
     search_product_docs,
     search_pricing,
     search_objection_playbook,
@@ -69,10 +69,7 @@ class SalesAgent:
         }
 
         # Route to the right provider
-        groq_models = {"llama", "mixtral", "gemma", "whisper"}
-        is_groq = any(g in model_name.lower() for g in groq_models)
-
-        if settings.GROQ_API_KEY and is_groq:
+        if settings.GROQ_API_KEY:
             url = "https://api.groq.com/openai/v1/chat/completions"
             headers["Authorization"] = f"Bearer {settings.GROQ_API_KEY}"
             payload["model"] = model_name
@@ -94,7 +91,11 @@ class SalesAgent:
             if resp.status_code == 429:
                 raise RuntimeError(f"429 rate-limit on {model_name}")
             resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"]
+            content = resp.json()["choices"][0]["message"]["content"]
+            # Clean thinking tags if present
+            if "<think>" in content and "</think>" in content:
+                content = content.split("</think>")[-1].strip()
+            return content
 
     # ── Heuristic fallback when ALL providers fail ─────────────────────────
     def _heuristic_fallback(self, last_utt: str, context: List[str]) -> str:
@@ -222,6 +223,10 @@ class SalesAgent:
         # Strip any stray markdown that would sound bad in TTS
         for ch in ("*", "#", "`", "_", "**", "##"):
             response_text = response_text.replace(ch, "")
+        
+        # Replace special unicode dashes/quotes with standard ASCII for clean TTS & logging
+        response_text = response_text.replace("—", " - ").replace("–", "-").replace("\u2011", "-")
+        response_text = response_text.replace("“", '"').replace("”", '"').replace("’", "'").replace("‘", "'")
         response_text = response_text.strip()
 
         return response_text, executed_tools

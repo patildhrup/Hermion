@@ -5,8 +5,8 @@ Exposes all HERMION sales-agent tools as a FastMCP server.
 """
 
 from fastmcp import FastMCP
-from services.qdrant_service import qdrant_store
-from database.database import db
+from app.services.qdrant_service import qdrant_store
+from app.database.database import db
 
 # ── Create the MCP server ──────────────────────────────────────────────────
 mcp = FastMCP(

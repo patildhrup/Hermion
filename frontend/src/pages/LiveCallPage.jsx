@@ -109,19 +109,41 @@ export default function LiveCallPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#121212] text-white flex flex-col font-body">
+    <div className="min-h-screen bg-background text-text flex flex-col font-body relative overflow-hidden">
+      {/* Dynamic Background Aura */}
+      <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full blur-[150px] pointer-events-none transition-colors duration-1000 ${
+        !isConnected ? 'bg-white/5' : agentStatus === 'speaking' ? 'bg-accent/20' : agentStatus === 'thinking' ? 'bg-highlight/20' : 'bg-blue-500/10'
+      }`} />
+      
       <Navbar />
 
-      <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-8 flex flex-col gap-6">
+      <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-10 flex flex-col gap-8 relative z-10 animate-fade-in-up">
         {/* Call Control Bar */}
-        <div className="p-6 rounded-2xl bg-[#181818] border border-[#2A2A2A] flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#6AE301]/20 border border-[#6AE301]/40 flex items-center justify-center text-2xl">
+        <div className="glass-panel p-6 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+          {/* Animated glow line at top */}
+          <div className={`absolute top-0 left-0 h-1 transition-all duration-1000 ${
+            isConnected ? 'w-full bg-gradient-to-r from-accent via-[#95FF29] to-accent' : 'w-0 bg-transparent'
+          }`} />
+
+          <div className="flex items-center gap-5">
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-inner transition-all duration-500 ${
+              isConnected ? 'bg-accent/20 border border-accent/40 shadow-[0_0_20px_rgba(106,227,1,0.3)]' : 'bg-surface border border-white/10 opacity-50'
+            }`}>
               🎙️
             </div>
             <div>
-              <h2 className="font-heading font-bold text-xl text-white">Live Voice Call Session</h2>
-              <p className="text-xs font-mono text-[#888]">Agora Real-Time Voice Channel: {channelName}</p>
+              <h2 className="font-heading font-bold text-2xl text-white">Live Voice Call Session</h2>
+              <div className="flex items-center gap-2 mt-1">
+                {isConnected && (
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent"></span>
+                  </span>
+                )}
+                <p className="text-xs font-mono text-textMuted uppercase tracking-wider">
+                  Agora Channel: <span className="text-white">{channelName}</span>
+                </p>
+              </div>
             </div>
           </div>
 
@@ -129,14 +151,14 @@ export default function LiveCallPage() {
             {!isConnected ? (
               <button
                 onClick={startCall}
-                className="px-8 py-3.5 rounded-xl bg-[#6AE301] text-black font-bold text-base hover:bg-[#80F318] transition-all shadow-[0_0_20px_rgba(106,227,1,0.3)] hover:scale-105"
+                className="px-10 py-4 rounded-xl bg-accent text-black font-bold text-lg hover:bg-accentHover transition-all shadow-[0_0_30px_rgba(106,227,1,0.4)] hover:shadow-[0_0_50px_rgba(106,227,1,0.6)] hover:-translate-y-0.5"
               >
                 Connect Call
               </button>
             ) : (
               <button
                 onClick={endCall}
-                className="px-8 py-3.5 rounded-xl bg-red-600 text-white font-bold text-base hover:bg-red-500 transition-all shadow-[0_0_20px_rgba(220,38,38,0.4)]"
+                className="px-10 py-4 rounded-xl bg-red-600/20 text-red-400 border border-red-500/50 font-bold text-lg hover:bg-red-600 hover:text-white transition-all shadow-[0_0_30px_rgba(220,38,38,0.2)] hover:shadow-[0_0_40px_rgba(220,38,38,0.5)]"
               >
                 End Call
               </button>
@@ -152,18 +174,18 @@ export default function LiveCallPage() {
 
         {/* Input Bar for Testing Voice/Text Turn */}
         {isConnected && (
-          <form onSubmit={sendTurn} className="flex gap-3">
+          <form onSubmit={sendTurn} className="flex gap-4 p-4 rounded-3xl glass-panel shadow-2xl sticky bottom-6 animate-fade-in-up">
             <input
               type="text"
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
-              placeholder="Speak or type your turn to HERMION (e.g. 'How much does your Pro plan cost?')..."
-              className="flex-1 px-5 py-4 rounded-2xl bg-[#181818] border border-[#2D2D2D] text-white focus:outline-none focus:border-[#6AE301] font-body"
+              placeholder="Type your turn to HERMION (e.g. 'How much does your Pro plan cost?')..."
+              className="flex-1 px-6 py-4 rounded-2xl bg-black/40 border border-white/10 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 font-body shadow-inner transition-all"
             />
             <button
               type="submit"
               disabled={agentStatus === 'thinking'}
-              className="px-8 py-4 rounded-2xl bg-[#6AE301] text-black font-bold hover:bg-[#80F318] transition-all disabled:opacity-50"
+              className="px-8 py-4 rounded-2xl bg-accent text-black font-bold hover:bg-accentHover transition-all shadow-[0_0_20px_rgba(106,227,1,0.3)] disabled:opacity-50 disabled:shadow-none disabled:hover:-translate-y-0 disabled:cursor-not-allowed hover:-translate-y-0.5"
             >
               Send Turn
             </button>

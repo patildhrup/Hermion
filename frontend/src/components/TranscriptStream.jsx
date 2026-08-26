@@ -10,22 +10,26 @@ export default function TranscriptStream({ transcripts = [] }) {
   }, [transcripts]);
 
   return (
-    <div className="flex flex-col h-[400px] bg-[#161616] rounded-2xl border border-[#262626] overflow-hidden">
-      <div className="px-5 py-3 border-b border-[#262626] bg-[#1A1A1A] flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-[#6AE301]" />
-          <span className="font-mono text-xs uppercase tracking-wider text-[#A0A0A0]">
+    <div className="flex flex-col h-[450px] glass-panel overflow-hidden animate-fade-in-up" style={{animationDelay: '200ms'}}>
+      <div className="px-6 py-4 border-b border-glassBorder bg-black/40 flex items-center justify-between backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent shadow-[0_0_8px_rgba(106,227,1,0.8)]"></span>
+          </div>
+          <span className="font-mono text-xs uppercase tracking-widest text-textMuted font-bold">
             Live Transcript Stream
           </span>
         </div>
-        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#242424] text-[#888]">
+        <span className="text-[10px] font-mono px-2.5 py-1 rounded bg-accent/10 text-accent border border-accent/20">
           Agora RTC + FastMCP Grounding
         </span>
       </div>
 
-      <div ref={scrollRef} className="flex-1 p-5 overflow-y-auto space-y-4">
+      <div ref={scrollRef} className="flex-1 p-6 overflow-y-auto space-y-6 scroll-smooth bg-black/20">
         {transcripts.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-[#555] font-mono text-sm">
+          <div className="h-full flex flex-col items-center justify-center text-textMuted font-mono text-sm opacity-50">
+            <div className="text-3xl mb-3">💬</div>
             Say something to HERMION to start the live conversation...
           </div>
         ) : (
@@ -34,26 +38,26 @@ export default function TranscriptStream({ transcripts = [] }) {
             return (
               <div
                 key={idx}
-                className={`flex flex-col ${isAgent ? 'items-start' : 'items-end'} animate-fade-in`}
+                className={`flex flex-col ${isAgent ? 'items-start' : 'items-end'} animate-fade-in-up`}
               >
-                <span className="text-[11px] font-mono text-[#777] mb-1 px-1">
+                <span className="text-[10px] font-mono text-textMuted/60 mb-1.5 px-2 uppercase tracking-wider">
                   {isAgent ? 'HERMION AI' : 'Prospect (You)'}
                 </span>
                 <div
-                  className={`max-w-[82%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+                  className={`max-w-[85%] px-5 py-4 rounded-3xl text-sm leading-relaxed shadow-lg ${
                     isAgent
-                      ? 'bg-[#222222] text-[#F5F5F5] border border-[#333] rounded-tl-sm'
-                      : 'bg-[#6AE301] text-black font-medium rounded-tr-sm shadow-[0_0_15px_rgba(106,227,1,0.2)]'
+                      ? 'bg-surface/80 text-white border border-white/10 rounded-tl-sm backdrop-blur-md'
+                      : 'bg-accent/90 text-black font-semibold rounded-tr-sm shadow-[0_5px_20px_rgba(106,227,1,0.25)] border border-accent/50'
                   }`}
                 >
                   {t.text || t.content}
                 </div>
                 {t.tools_used && t.tools_used.length > 0 && (
-                  <div className="mt-1 flex flex-wrap gap-1">
+                  <div className="mt-2 flex flex-wrap gap-2 px-1">
                     {t.tools_used.map((tool, i) => (
                       <span
                         key={i}
-                        className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#182B05] text-[#6AE301] border border-[#2B540A]"
+                        className="text-[9px] font-mono px-2 py-1 rounded-full bg-accent/10 text-accent border border-accent/30 shadow-[0_0_10px_rgba(106,227,1,0.15)] flex items-center gap-1"
                       >
                         ⚡ FastMCP: {tool}
                       </span>

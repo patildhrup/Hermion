@@ -10,12 +10,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from config.config import settings
-from database.database import db
-from services.qdrant_service import qdrant_store
-from agent.agent import sales_agent
-from services.agora_service import generate_agora_rtc_token, agora_ai_service
-from mcp_service.mcp_server import mcp as hermion_mcp
+from app.config.config import settings
+from app.database.database import db
+from app.database import mongo_db
+from app.services.qdrant_service import qdrant_store
+from app.agent.agent import sales_agent
+from app.services.agora_service import generate_agora_rtc_token, agora_ai_service
+from app.mcp_service.mcp_server import mcp as hermion_mcp
 
 app = FastAPI(
     title="HERMION AI Voice Sales Agent API",
@@ -55,6 +56,7 @@ class LLMRequest(BaseModel):
     stream: Optional[bool] = False
     lead_id: Optional[str] = ""
     call_id: Optional[str] = ""
+    session_id: Optional[str] = ""
 
 class CreateLeadRequest(BaseModel):
     name: str
@@ -62,6 +64,18 @@ class CreateLeadRequest(BaseModel):
     contact_info: Optional[str] = ""
     qualification_score: Optional[int] = 0
     status: Optional[str] = "new"
+
+class CreateConversationRequest(BaseModel):
+    user_id: str
+    title: Optional[str] = "New Conversation"
+
+class AppendMessageRequest(BaseModel):
+    role: str
+    content: str
+    metadata: Optional[Dict[str, Any]] = None
+
+class RenameConversationRequest(BaseModel):
+    title: str
 
 class StartAgentRequest(BaseModel):
     channel_name: str
@@ -178,6 +192,16 @@ async def agora_llm_endpoint(req: LLMRequest, background_tasks: BackgroundTasks)
         if latest_user_msg:
             background_tasks.add_task(db.save_transcript, call_id, "prospect", latest_user_msg)
         background_tasks.add_task(db.save_transcript, call_id, "hermion", agent_response)
+
+    # Persist to MongoDB conversation history if session_id provided
+    if req.session_id:
+        latest_user_msg = next((m.content for m in reversed(req.messages) if m.role == "user"), "")
+        if latest_user_msg:
+            background_tasks.add_task(mongo_db.append_message, req.session_id, "user", latest_user_msg)
+        background_tasks.add_task(
+            mongo_db.append_message, req.session_id, "assistant", agent_response,
+            {"tools_used": tools_used}
+        )
 
     response_payload = {
         "id": f"chatcmpl-{str(uuid.uuid4())[:8]}",
@@ -332,6 +356,50 @@ def get_transcripts(call_id: str):
 def get_summary(call_id: str):
     summary = db.get_summary(call_id)
     return summary or {"summary_text": "Call completed. Summary pending.", "objections_raised": [], "sentiment": "neutral"}
+
+# --- Conversation History Endpoints (MongoDB) ---
+@app.post("/conversations")
+def create_conversation(req: CreateConversationRequest):
+    """Create a new conversation/call session for history tracking."""
+    conv = mongo_db.create_conversation(req.user_id, req.title)
+    return conv
+
+@app.get("/conversations")
+def list_conversations(user_id: str, limit: int = 50):
+    """List all conversations for a user, newest first."""
+    return mongo_db.get_conversations(user_id, limit)
+
+@app.get("/conversations/{session_id}")
+def get_conversation(session_id: str):
+    """Get a single conversation with its full message history."""
+    conv = mongo_db.get_conversation(session_id)
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return conv
+
+@app.post("/conversations/{session_id}/messages")
+def append_message(session_id: str, req: AppendMessageRequest):
+    """Append a message to an existing conversation."""
+    ok = mongo_db.append_message(session_id, req.role, req.content, req.metadata)
+    return {"status": "ok" if ok else "fallback", "session_id": session_id}
+
+@app.patch("/conversations/{session_id}")
+def update_conversation_meta(session_id: str, updates: Dict[str, Any]):
+    """Update conversation metadata like call_id, lead_id, status."""
+    ok = mongo_db.update_conversation(session_id, updates)
+    return {"status": "ok" if ok else "fallback"}
+
+@app.patch("/conversations/{session_id}/rename")
+def rename_conversation(session_id: str, req: RenameConversationRequest, user_id: str):
+    """Rename a conversation."""
+    ok = mongo_db.rename_conversation(session_id, user_id, req.title)
+    return {"status": "ok" if ok else "fallback"}
+
+@app.delete("/conversations/{session_id}")
+def delete_conversation(session_id: str, user_id: str):
+    """Archive/delete a conversation."""
+    ok = mongo_db.delete_conversation(session_id, user_id)
+    return {"status": "ok" if ok else "fallback"}
 
 # --- Qdrant Search API ---
 @app.post("/qdrant/search")

@@ -3,7 +3,7 @@ import math
 from typing import List, Dict, Any
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
-from config.config import settings
+from app.config.config import settings
 
 class QdrantKnowledgeStore:
     def __init__(self):
@@ -161,22 +161,34 @@ class QdrantKnowledgeStore:
 
         query_vec = self._simple_vectorize(query)
         try:
-            results = self.client.search(
-                collection_name=collection_name,
-                query_vector=query_vec,
-                limit=top_k
-            )
-            hits = []
-            for res in results:
-                hits.append({
-                    "score": round(res.score, 4),
-                    "text": res.payload.get("text", ""),
-                    "metadata": {k: v for k, v in res.payload.items() if k != "text"}
-                })
-            if hits:
-                return hits
+            results = None
+            if hasattr(self.client, 'search'):
+                results = self.client.search(
+                    collection_name=collection_name,
+                    query_vector=query_vec,
+                    limit=top_k
+                )
+            elif hasattr(self.client, 'query_points'):
+                response = self.client.query_points(
+                    collection_name=collection_name,
+                    query=query_vec,
+                    limit=top_k
+                )
+                results = response.points
+
+            if results:
+                hits = []
+                for res in results:
+                    payload = res.payload or {}
+                    hits.append({
+                        "score": round(res.score, 4),
+                        "text": payload.get("text", ""),
+                        "metadata": {k: v for k, v in payload.items() if k != "text"}
+                    })
+                if hits:
+                    return hits
         except Exception as e:
-            print(f"[Qdrant] Search exception in {collection_name}: {e}")
+            pass
 
         # Fallback keyword ranking in memory
         keywords = set(re.findall(r'\w+', query.lower()))

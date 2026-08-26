@@ -5,7 +5,7 @@ import hashlib
 import struct
 import httpx
 from typing import Dict, Any, Optional
-from config.config import settings
+from app.config.config import settings
 
 def generate_agora_rtc_token(channel_name: str, uid: int or str, role: int = 1, expire_seconds: int = 3600) -> str:
     """Generate Agora Access Token for RTC channel connection."""

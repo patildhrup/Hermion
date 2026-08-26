@@ -4,7 +4,7 @@ import json
 import time
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from config.config import settings
+from app.config.config import settings
 
 
 class Database:

@@ -43,10 +43,23 @@ export const hermionApi = {
   getTranscripts: (callId) => request(`/calls/${callId}/transcripts`),
   getSummary: (callId) => request(`/calls/${callId}/summary`),
 
-  // Direct LLM Turn (Fallback / Direct Chat)
-  sendLLMTurn: (messages, leadId = '', callId = '') =>
-    request('/llm', { method: 'POST', body: JSON.stringify({ messages, lead_id: leadId, call_id: callId }) }),
+  // Direct LLM Turn (with optional MongoDB session tracking)
+  sendLLMTurn: (messages, leadId = '', callId = '', sessionId = '') =>
+    request('/llm', { method: 'POST', body: JSON.stringify({ messages, lead_id: leadId, call_id: callId, session_id: sessionId }) }),
 
   // FastMCP Tools List
   getMcpTools: () => request('/mcp/tools'),
+
+  // Conversation History (MongoDB)
+  createConversation: (userId, title = 'New Conversation') =>
+    request('/conversations', { method: 'POST', body: JSON.stringify({ user_id: userId, title }) }),
+  getConversations: (userId) => request(`/conversations?user_id=${encodeURIComponent(userId)}`),
+  getConversation: (sessionId) => request(`/conversations/${sessionId}`),
+  appendMessage: (sessionId, role, content, metadata = null) =>
+    request(`/conversations/${sessionId}/messages`, { method: 'POST', body: JSON.stringify({ role, content, metadata }) }),
+  renameConversation: (sessionId, userId, title) =>
+    request(`/conversations/${sessionId}/rename?user_id=${encodeURIComponent(userId)}`, { method: 'PATCH', body: JSON.stringify({ title }) }),
+  deleteConversation: (sessionId, userId) =>
+    request(`/conversations/${sessionId}?user_id=${encodeURIComponent(userId)}`, { method: 'DELETE' }),
 };
+

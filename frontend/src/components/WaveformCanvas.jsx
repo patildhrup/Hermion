@@ -32,13 +32,13 @@ export default function WaveformCanvas({ isConnected, isSpeaking, agentStatus })
             // Dynamic waveform
             const sin1 = Math.sin(phase + i * 0.25);
             const sin2 = Math.cos(phase * 1.5 + i * 0.15);
-            barHeight = 12 + Math.abs(sin1 * sin2) * 55;
+            barHeight = 12 + Math.abs(sin1 * sin2) * 65;
           } else if (agentStatus === 'thinking') {
             // Thinking pulse wave
-            barHeight = 10 + Math.sin(phase * 2 + i * 0.4) * 20;
+            barHeight = 10 + Math.sin(phase * 2 + i * 0.4) * 25;
           } else {
             // Idle ambient breathe
-            barHeight = 6 + Math.sin(phase + i * 0.1) * 8;
+            barHeight = 6 + Math.sin(phase + i * 0.1) * 10;
           }
         }
 
@@ -54,14 +54,22 @@ export default function WaveformCanvas({ isConnected, isSpeaking, agentStatus })
           gradient.addColorStop(0, '#F2D42C');
           gradient.addColorStop(1, '#FFE866');
         } else {
-          gradient.addColorStop(0, '#444444');
-          gradient.addColorStop(1, '#222222');
+          gradient.addColorStop(0, '#555555');
+          gradient.addColorStop(1, '#333333');
         }
 
         ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.roundRect(x, y, barWidth, barHeight, 4);
+        ctx.roundRect(x, y, barWidth, barHeight, 5);
         ctx.fill();
+        
+        // Add glow effect if active
+        if (isConnected) {
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = agentStatus === 'speaking' ? 'rgba(106, 227, 1, 0.4)' : agentStatus === 'thinking' ? 'rgba(242, 212, 44, 0.4)' : 'transparent';
+        } else {
+          ctx.shadowBlur = 0;
+        }
       }
 
       animationFrameId = requestAnimationFrame(render);
@@ -75,22 +83,22 @@ export default function WaveformCanvas({ isConnected, isSpeaking, agentStatus })
   }, [isConnected, isSpeaking, agentStatus]);
 
   return (
-    <div className="relative w-full flex flex-col items-center justify-center p-6 bg-[#161616] rounded-2xl border border-[#262626] shadow-2xl">
-      <canvas ref={canvasRef} width={600} height={120} className="w-full max-w-xl h-28" />
+    <div className="relative w-full flex flex-col items-center justify-center p-8 glass-panel animate-fade-in-up" style={{animationDelay: '100ms'}}>
+      <canvas ref={canvasRef} width={600} height={140} className="w-full max-w-xl h-32" />
 
-      <div className="mt-4 flex items-center gap-3">
+      <div className="mt-6 flex items-center gap-3 bg-black/40 px-5 py-2.5 rounded-full border border-white/5 shadow-inner backdrop-blur-md">
         <span
-          className={`w-3 h-3 rounded-full ${
+          className={`w-3 h-3 rounded-full shadow-[0_0_10px_currentColor] ${
             agentStatus === 'speaking'
-              ? 'bg-[#6AE301] animate-ping'
+              ? 'bg-accent text-accent animate-ping'
               : agentStatus === 'thinking'
-              ? 'bg-[#F2D42C] animate-pulse'
+              ? 'bg-highlight text-highlight animate-pulse'
               : isConnected
-              ? 'bg-[#6AE301]'
-              : 'bg-red-500'
+              ? 'bg-accent text-accent'
+              : 'bg-red-500 text-red-500'
           }`}
         />
-        <span className="font-mono text-xs uppercase tracking-widest text-[#A0A0A0]">
+        <span className="font-mono text-xs uppercase tracking-widest text-textMuted font-bold">
           {agentStatus === 'speaking'
             ? 'HERMION Speaking...'
             : agentStatus === 'thinking'
