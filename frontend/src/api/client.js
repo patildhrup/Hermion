@@ -48,8 +48,8 @@ export const hermionApi = {
   getSummary: (callId) => request(`/calls/${callId}/summary`),
 
   // Direct LLM Turn (with optional MongoDB session tracking)
-  sendLLMTurn: (messages, callId = '', sessionId = '', agentId = '') =>
-    request('/llm', { method: 'POST', body: JSON.stringify({ messages, call_id: callId, session_id: sessionId, agent_id: agentId }) }),
+  sendLLMTurn: (messages, callId = '', sessionId = '', agentId = '', userId = '') =>
+    request('/llm', { method: 'POST', body: JSON.stringify({ messages, call_id: callId, session_id: sessionId, agent_id: agentId, user_id: userId }) }),
 
   // FastMCP Tools List
   getMcpTools: () => request('/mcp/tools'),

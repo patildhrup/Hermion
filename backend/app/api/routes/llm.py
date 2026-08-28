@@ -25,6 +25,7 @@ class LLMRequest(BaseModel):
     call_id: Optional[str] = ""
     session_id: Optional[str] = ""
     agent_id: Optional[str] = ""
+    user_id: Optional[str] = ""
 
 
 @router.post("/llm")
@@ -38,7 +39,11 @@ async def agora_llm_endpoint(req: LLMRequest, background_tasks: BackgroundTasks)
     """
     messages = [{"role": m.role, "content": m.content} for m in req.messages]
 
-    agent_response, tools_used = hermion_agent_service.process_turn(messages, session_id=req.session_id or "")
+    agent_response, tools_used = hermion_agent_service.process_turn(
+        messages,
+        session_id=req.session_id or "",
+        user_id=req.user_id or "",
+    )
 
     # Save transcripts to DB (SQLite / Supabase)
     if req.call_id:

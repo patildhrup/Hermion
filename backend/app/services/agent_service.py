@@ -5,6 +5,9 @@ import httpx
 
 from app.config.config import settings
 from app.database import mongo_db
+from app.services.meeting_service import meeting_assistant_service
+from app.services.mcp_runtime import mcp_runtime
+from app.services.memory_service import memory_service
 from app.services.qdrant_service import qdrant_store
 
 
@@ -15,8 +18,8 @@ Rules:
 - Respond in plain spoken English only.
 - Keep responses concise and natural for speech.
 - Use only the currently implemented capabilities.
-- Right now, focus on voice interaction, transcript continuity, interruption handling, and session-aware responses.
-- If the user asks for calendar, email, documents, GitHub, Slack, RAG workflows beyond the current scope, or tool execution that is not implemented yet, say that it is not available yet.
+- Use validated internal tools for calendar, email, tasks, documents, and memory requests.
+- If an action requires approval, say that approval is required before it can be completed.
 """
 
 
@@ -40,10 +43,11 @@ class HermionAgentService:
         text = text.replace("\u202f", " ").replace("\u00a0", " ")
         return text.strip()
 
-    def _retrieve_context(self, utterance: str) -> Tuple[List[str], List[str]]:
+    def _retrieve_context(self, utterance: str, user_id: str) -> Tuple[List[str], List[str], List[Dict[str, str]]]:
         query = utterance.lower().strip()
         tools_used: List[str] = []
         retrieved: List[str] = []
+        tool_results: List[Dict[str, str]] = []
 
         voice_keywords = {
             "voice", "session", "transcript", "microphone", "mic", "listening",
@@ -56,7 +60,51 @@ class HermionAgentService:
                 retrieved.append("\n---\n".join(hit["text"] for hit in hits))
                 tools_used.append("search_product_docs")
 
-        return retrieved, tools_used
+        tool_requests = [
+            ("get_calendar_events", ["meeting", "calendar", "schedule", "today"]),
+            ("search_emails", ["email", "inbox", "mail"]),
+            ("create_task", ["task", "remind me", "todo"]),
+            ("search_documents", ["document", "architecture", "requirements", "file"]),
+            ("search_memory", ["remember", "memory", "previous context", "migration"]),
+        ]
+        for tool_name, keywords in tool_requests:
+            if any(keyword in query for keyword in keywords):
+                payload = {"query": utterance}
+                if tool_name == "get_calendar_events":
+                    payload = {"date": ""}
+                elif tool_name == "create_task":
+                    payload = {"title": utterance, "priority": "medium", "due_date": ""}
+                result = mcp_runtime.execute(tool_name, payload, {"user_id": user_id})
+                tools_used.append(tool_name)
+                tool_results.append({
+                    "tool": tool_name,
+                    "status": result["status"],
+                    "message": str(result.get("data") or result.get("message") or result.get("error")),
+                })
+                if result["status"] == "success":
+                    retrieved.append(f"[{tool_name.upper()}]\n{result['data']}")
+
+        if any(keyword in query for keyword in ["remember that", "remember this", "store this"]):
+            memory_result = mcp_runtime.execute(
+                "store_memory",
+                {"text": utterance, "metadata": {"source": "voice"}},
+                {"user_id": user_id},
+            )
+            tools_used.append("store_memory")
+            tool_results.append({
+                "tool": "store_memory",
+                "status": memory_result["status"],
+                "message": str(memory_result.get("data") or memory_result.get("error")),
+            })
+
+        if any(keyword in query for keyword in ["summarize the meeting", "what decisions", "action items", "deadlines", "participants mentioned"]):
+            meeting_summary = meeting_assistant_service.analyze_transcript(utterance)
+            retrieved.append(f"[MEETING ASSISTANT]\n{meeting_summary}")
+            tools_used.append("meeting_assistant")
+
+        memory_service.store_short_term(session_id="agent-session", role="user", text=utterance)
+
+        return retrieved, tools_used, tool_results
 
     def _load_session_history(self, session_id: str, current_messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
         if not session_id:
@@ -118,12 +166,16 @@ class HermionAgentService:
 
         raise RuntimeError(str(last_error) if last_error else "Groq request failed")
 
-    def _heuristic_fallback(self, utterance: str, context_blocks: List[str]) -> str:
+    def _heuristic_fallback(self, utterance: str, context_blocks: List[str], tool_results: List[Dict[str, str]]) -> str:
         query = utterance.lower()
+        if tool_results:
+            latest = tool_results[-1]
+            if latest["status"] == "requires_approval":
+                return "I can prepare that action, but I need your approval before completing it."
+            if latest["status"] == "success":
+                return f"I found the relevant result through {latest['tool'].replace('_', ' ')}."
         if context_blocks:
             return self._normalize_output(context_blocks[0].split("---")[0][:260])
-        if any(keyword in query for keyword in ["calendar", "email", "document", "github", "slack", "task"]):
-            return "That workflow is not implemented yet. Right now I can help with real-time voice interaction and maintain this session."
         if any(keyword in query for keyword in ["interrupt", "barge", "stop", "speaking"]):
             return "I can stop speaking when you interrupt and continue the conversation from your latest turn."
         if any(keyword in query for keyword in ["voice", "session", "microphone", "transcript"]):
@@ -134,6 +186,7 @@ class HermionAgentService:
         self,
         messages: List[Dict[str, str]],
         session_id: str = "",
+        user_id: str = "",
     ) -> Tuple[str, List[str]]:
         current_messages = [
             {"role": message.get("role", "user"), "content": message.get("content", "")}
@@ -146,7 +199,7 @@ class HermionAgentService:
             "",
         )
 
-        context_blocks, tools_used = self._retrieve_context(latest_user_text)
+        context_blocks, tools_used, tool_results = self._retrieve_context(latest_user_text, user_id)
         llm_messages: List[Dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
         if context_blocks:
             llm_messages.append(
@@ -155,12 +208,21 @@ class HermionAgentService:
                     "content": "Verified context:\n" + "\n\n".join(context_blocks),
                 }
             )
+        if tool_results:
+            llm_messages.append(
+                {
+                    "role": "system",
+                    "content": "Tool execution results:\n" + "\n".join(
+                        f"{item['tool']}: {item['status']} - {item['message']}" for item in tool_results
+                    ),
+                }
+            )
         llm_messages.extend(history[-8:])
 
         try:
             response = self._call_groq(llm_messages)
         except Exception:
-            response = self._heuristic_fallback(latest_user_text, context_blocks)
+            response = self._heuristic_fallback(latest_user_text, context_blocks, tool_results)
 
         return response, tools_used
 

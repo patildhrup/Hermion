@@ -16,3 +16,6 @@ fastmcp>=2.0.0
 mcp>=1.0.0
 pymongo>=4.9.0
 dnspython>=2.6.1
+redis>=5.0.7
+pypdf>=5.0.0
+python-docx>=1.1.2

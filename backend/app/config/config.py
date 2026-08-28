@@ -58,6 +58,10 @@ class Settings:
     # MongoDB
     MONGO_URL: str = os.getenv("MONGO_URL", "")
 
+    # Memory / MCP
+    REDIS_URL: str = os.getenv("REDIS_URL", "")
+    HERMION_MCP_API_KEY: str = os.getenv("HERMION_MCP_API_KEY", "")
+
     def get_public_url(self) -> str:
         # Re-read HERMION_PUBLIC_URL from env every time, per requirement
         url = os.getenv("HERMION_PUBLIC_URL", self.HERMION_PUBLIC_URL).rstrip("/")

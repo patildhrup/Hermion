@@ -95,7 +95,7 @@ export default function LiveCallPage() {
         content: t.text,
       }));
 
-      const res = await hermionApi.sendLLMTurn(history, currentCallId, sessionId, currentAgentId);
+      const res = await hermionApi.sendLLMTurn(history, currentCallId, sessionId, currentAgentId, '');
       const choice = res.choices?.[0]?.message?.content || 'I understand. How else can I help?';
       const toolsUsed = res.x_executed_tools || [];
 

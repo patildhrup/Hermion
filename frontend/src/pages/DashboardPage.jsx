@@ -199,7 +199,8 @@ export default function DashboardPage() {
           history,
           currentCallId,
           currentSession.session_id,
-          currentAgentId
+          currentAgentId,
+          user?.id || ''
         );
 
         const reply = response.choices?.[0]?.message?.content || 'I understand. How can I help further?';
