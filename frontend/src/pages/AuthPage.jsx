@@ -59,7 +59,7 @@ export default function AuthPage() {
               {isLogin ? 'Welcome Back' : 'Create Account'}
             </h2>
             <p className="text-xs font-mono text-[#888]">
-              Sign in to manage your HERMION AI Sales SDR
+              Sign in to access your HERMION voice workspace
             </p>
           </div>
 
@@ -86,15 +86,15 @@ export default function AuthPage() {
 
             <div>
               <label className="block text-xs font-mono text-[#AAA] mb-1">Email Address</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-[#121212] border border-[#333] text-white focus:outline-none focus:border-[#6AE301]"
-                placeholder="sales@company.com"
-              />
-            </div>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-[#121212] border border-[#333] text-white focus:outline-none focus:border-[#6AE301]"
+                  placeholder="you@company.com"
+                />
+              </div>
 
             <div>
               <label className="block text-xs font-mono text-[#AAA] mb-1">Password</label>

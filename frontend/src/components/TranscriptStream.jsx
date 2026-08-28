@@ -22,7 +22,7 @@ export default function TranscriptStream({ transcripts = [] }) {
           </span>
         </div>
         <span className="text-[10px] font-mono px-2.5 py-1 rounded bg-accent/10 text-accent border border-accent/20">
-          Agora RTC + FastMCP Grounding
+          Agora RTC + FastAPI Agent
         </span>
       </div>
 
@@ -41,7 +41,7 @@ export default function TranscriptStream({ transcripts = [] }) {
                 className={`flex flex-col ${isAgent ? 'items-start' : 'items-end'} animate-fade-in-up`}
               >
                 <span className="text-[10px] font-mono text-textMuted/60 mb-1.5 px-2 uppercase tracking-wider">
-                  {isAgent ? 'HERMION AI' : 'Prospect (You)'}
+                  {isAgent ? 'HERMION AI' : 'You'}
                 </span>
                 <div
                   className={`max-w-[85%] px-5 py-4 rounded-3xl text-sm leading-relaxed shadow-lg ${

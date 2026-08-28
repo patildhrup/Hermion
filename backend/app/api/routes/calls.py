@@ -16,38 +16,34 @@ def auto_generate_call_summary(call_id: str, lead_id: str = ""):
 
     full_text = "\n".join([f"{t['speaker'].upper()}: {t['text']}" for t in transcripts])
 
-    # Analyze objections & score
-    objections = []
-    if "expensive" in full_text.lower() or "cost" in full_text.lower() or "price" in full_text.lower():
-        objections.append("pricing")
-    if "ai" in full_text.lower() or "bot" in full_text.lower():
-        objections.append("authenticity")
-    if "setup" in full_text.lower() or "hard" in full_text.lower():
-        objections.append("setup_complexity")
+    lower_text = full_text.lower()
+    topics = []
+    if any(term in lower_text for term in ["voice", "session", "call"]):
+        topics.append("voice_session")
+    if any(term in lower_text for term in ["interrupt", "stop", "speaking"]):
+        topics.append("interruption")
+    if any(term in lower_text for term in ["transcript", "history", "context"]):
+        topics.append("session_context")
 
-    has_demo = "demo" in full_text.lower() or "booked" in full_text.lower() or "thursday" in full_text.lower()
-    score = 85 if has_demo else (70 if len(transcripts) > 4 else 45)
-
+    turn_count = len(transcripts)
     summary_text = (
-        f"Call transcript consisted of {len(transcripts)} turns. Prospect expressed interest in HERMION voice SDR capabilities. "
-        + ("Demo booked successfully for Thursday." if has_demo else "Prospect was qualified and pricing options were presented.")
+        f"Voice session completed with {turn_count} transcript turns. "
+        "The conversation remained focused on HERMION's real-time voice assistant capabilities."
     )
-    next_steps = "Follow up with calendar invite and product whitepaper." if has_demo else "Schedule follow-up call next week."
+    next_steps = (
+        "Review the transcript and continue refining the real-time voice workflow."
+        if turn_count > 2
+        else "Start another session to continue testing the voice interaction flow."
+    )
 
     db.save_summary({
         "id": str(uuid.uuid4()),
         "call_id": call_id,
         "summary_text": summary_text,
         "next_steps": next_steps,
-        "objections_raised": objections,
-        "sentiment": "positive" if score >= 70 else "neutral"
+        "objections_raised": topics,
+        "sentiment": "positive" if turn_count > 2 else "neutral"
     })
-
-    if lead_id:
-        db.update_lead(lead_id, {
-            "qualification_score": score,
-            "status": "demo_booked" if has_demo else "qualified"
-        })
 
 
 @router.get("")

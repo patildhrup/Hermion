@@ -50,27 +50,27 @@ class QdrantKnowledgeStore:
         product_docs = [
             {
                 "id": 1,
-                "text": "HERMION is an enterprise-grade voice-native AI sales rep capable of real-time multi-turn conversation with sub-300ms latency. It features instant barge-in interruption, automated CRM syncing, and zero-latency Qdrant knowledge retrieval.",
+                "text": "HERMION is a voice-first workplace assistant capable of real-time multi-turn conversation with low-latency response. It supports live transcript streaming, natural interruption handling, session continuity, and backend-connected reasoning.",
                 "metadata": {"source": "product_docs.pdf", "section": "Core Capabilities"}
             },
             {
                 "id": 2,
-                "text": "HERMION integrates directly with Supabase, Hubspot, and Salesforce for real-time lead updates, transcript streaming, qualification scoring, and automated demo scheduling.",
+                "text": "HERMION connects the frontend voice experience to a FastAPI backend that manages session state, agent orchestration, and secure credential handling through environment variables.",
                 "metadata": {"source": "product_docs.pdf", "section": "Integrations"}
             },
             {
                 "id": 3,
-                "text": "HERMION features sub-300ms interruption handling (barge-in). When a prospect speaks while HERMION is speaking, VAD detects incoming speech, halts audio playback immediately, processes the new context, and responds seamlessly.",
+                "text": "HERMION supports interruption handling during live voice sessions. When a user speaks while HERMION is speaking, the voice layer can halt playback, preserve context, and continue the session naturally.",
                 "metadata": {"source": "product_docs.pdf", "section": "Voice Architecture"}
             },
             {
                 "id": 4,
-                "text": "HERMION's AI sales motion follows a structured flow: Warm Greeting -> Prospect Qualification (company size, use case, timeline) -> Value Presentation -> Objection Handling -> Demo Booking -> CRM Sync.",
-                "metadata": {"source": "sales_playbook.pdf", "section": "Sales Methodology"}
+                "text": "HERMION's current implementation focus is reliable real-time voice interaction: start session, stop session, show microphone and speaking state, display transcript, preserve session continuity, and return simple assistant responses.",
+                "metadata": {"source": "voice_workflow.pdf", "section": "Voice Interaction Workflow"}
             },
             {
                 "id": 5,
-                "text": "HERMION supports custom voice cloning via ElevenLabs BYOK, multi-language detection, rate-limit automated model fallback, and enterprise SLA uptime.",
+                "text": "HERMION is designed to evolve through a modular backend service layer so speech, language reasoning, and future workplace tools can remain isolated and maintainable.",
                 "metadata": {"source": "product_docs.pdf", "section": "Enterprise Features"}
             }
         ]
@@ -79,27 +79,27 @@ class QdrantKnowledgeStore:
         pricing_docs = [
             {
                 "id": 101,
-                "text": "HERMION Starter Plan costs $99 per month. Includes 500 voice call minutes per month, 1 concurrent call agent, basic CRM logging, and standard support. Extra minutes billed at $0.15/min.",
+                "text": "The current implementation is focused on real-time voice interaction rather than product pricing. Pricing workflows are not implemented in the assistant yet.",
                 "metadata": {"plan": "Starter", "price": "$99/mo", "limits": "500 mins"}
             },
             {
                 "id": 102,
-                "text": "HERMION Pro Plan costs $299 per month. Includes 2,500 voice call minutes per month, 5 concurrent call agents, real-time Qdrant RAG, custom objection playbooks, live calendar booking, and priority support.",
+                "text": "HERMION currently supports real-time voice sessions, transcript updates, session continuity, and backend-routed assistant responses. Broader workplace tooling is planned but not active yet.",
                 "metadata": {"plan": "Pro", "price": "$299/mo", "limits": "2,500 mins"}
             },
             {
                 "id": 103,
-                "text": "HERMION Enterprise Plan costs $899 per month (billed annually). Includes unlimited voice minutes, custom ElevenLabs voice clone, dedicated account manager, custom CRM integrations, SSO, and 99.9% uptime SLA.",
+                "text": "Credentials for Agora and language model providers should remain server-side and be supplied through environment variables in production deployments.",
                 "metadata": {"plan": "Enterprise", "price": "$899/mo", "limits": "Unlimited"}
             },
             {
                 "id": 104,
-                "text": "All plans include a 14-day free trial with 100 free call minutes and full access to Qdrant playbook indexing and live demo booking.",
+                "text": "The current stage uses simple assistant replies and a modular FastAPI backend so future workplace integrations can be added without rewriting the voice layer.",
                 "metadata": {"plan": "Trial", "price": "Free", "limits": "100 mins"}
             },
             {
                 "id": 105,
-                "text": "Annual billing discount: Paying annually grants a 20% discount on Pro and Enterprise tiers (equivalent to $239/mo for Pro and $719/mo for Enterprise).",
+                "text": "The voice stack is designed around start and stop session controls, visible listening state, live transcript display, and interruption handling.",
                 "metadata": {"plan": "Discounts", "price": "20% off", "limits": "Annual"}
             }
         ]
@@ -108,27 +108,27 @@ class QdrantKnowledgeStore:
         objection_docs = [
             {
                 "id": 201,
-                "text": "Objection: 'This seems expensive.' Rebuttal: 'I completely understand budget is top of mind. However, hiring a single full-time SDR costs over $65,000 per year plus onboarding. HERMION gives you 24/7 instant response coverage starting at just $99 a month, boosting qualified conversion by over 3x. Our customers usually see positive ROI in their first 14 days.'",
+                "text": "Question: 'What can HERMION do right now?' Response: 'The assistant currently focuses on reliable real-time voice interaction, transcript continuity, and backend-connected test responses.'",
                 "metadata": {"category": "price", "objection_text": "expensive"}
             },
             {
                 "id": 202,
-                "text": "Objection: 'Will prospects know it is an AI?' Rebuttal: 'HERMION utilizes state-of-the-art Voice Activity Detection and sub-300ms low-latency turn taking powered by Agora and ElevenLabs. It responds naturally, allows full mid-sentence interruptions, and handles complex Q&A grounded in your real docs so prospects feel like they are talking to a top 1% human sales rep.'",
+                "text": "Question: 'Will people know it is an AI?' Response: 'HERMION uses Voice Activity Detection and low-latency turn taking to respond naturally, support interruptions, and stay grounded in the available session context.'",
                 "metadata": {"category": "authenticity", "objection_text": "is it AI"}
             },
             {
                 "id": 203,
-                "text": "Objection: 'We already have sales reps / SDR team.' Rebuttal: 'HERMION isn't meant to replace your top closers—it empowers them! HERMION acts as your front-line SDR, instantly answering inbound leads 24/7 within seconds, qualifying them, and booking confirmed demos directly onto your senior reps' calendars.'",
+                "text": "Question: 'We already have established workflows.' Response: 'HERMION is designed to support existing teams with a voice-first interface for real-time interaction, not to replace their workflow or decision-making.'",
                 "metadata": {"category": "team_fit", "objection_text": "already have reps"}
             },
             {
                 "id": 204,
-                "text": "Objection: 'Is setup difficult or time consuming?' Rebuttal: 'Not at all! Setup takes less than 15 minutes. You simply upload your product FAQs or pricing PDFs, connect your calendar or CRM, and HERMION is ready to handle live calls immediately.'",
+                "text": "Question: 'Is setup difficult or time consuming?' Response: 'The implemented flow is intentionally narrow: configure environment variables, run the FastAPI backend, and connect the frontend voice UI.'",
                 "metadata": {"category": "setup", "objection_text": "hard to set up"}
             },
             {
                 "id": 205,
-                "text": "Objection: 'What if a prospect asks a legal or contract question HERMION doesn't know?' Rebuttal: 'If a prospect asks a question outside HERMION's verified knowledge base, HERMION smoothly escalates the call to a human account executive or schedules an immediate follow-up call with your specialist.'",
+                "text": "Question: 'What happens when HERMION cannot handle a request?' Response: 'HERMION should respond clearly that the requested workflow is not implemented yet and stay within the current voice-assistant scope.'",
                 "metadata": {"category": "escalation", "objection_text": "unknown questions"}
             }
         ]

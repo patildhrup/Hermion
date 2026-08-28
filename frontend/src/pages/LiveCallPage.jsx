@@ -12,6 +12,8 @@ export default function LiveCallPage() {
   const [transcripts, setTranscripts] = useState([]);
   const [userInput, setUserInput] = useState('');
   const [currentCallId, setCurrentCallId] = useState('');
+  const [currentAgentId, setCurrentAgentId] = useState('');
+  const [sessionId] = useState(`live-call-${Date.now()}`);
   const [summary, setSummary] = useState(null);
   const [showSummary, setShowSummary] = useState(false);
 
@@ -24,14 +26,15 @@ export default function LiveCallPage() {
       setCurrentCallId(callRecord.id);
 
       // Start Agora AI Agent session
-      await hermionApi.startAgent(channelName);
+      const agentSession = await hermionApi.startAgent(channelName, sessionId, callRecord.id);
+      setCurrentAgentId(agentSession.agent_id || '');
       setIsConnected(true);
 
       // Welcome message turn
       setTranscripts([
         {
           speaker: 'hermion',
-          text: 'Hi there! I am HERMION from EchoSphere AI. What brings you to our platform today, and how big is your sales team?',
+          text: "Hi, I'm HERMION, your intelligent voice work assistant. How can I help you today?",
         },
       ]);
     } catch (err) {
@@ -39,10 +42,11 @@ export default function LiveCallPage() {
       // Fallback local mode
       setIsConnected(true);
       setCurrentCallId('call-local-' + Date.now());
+      setCurrentAgentId('');
       setTranscripts([
         {
           speaker: 'hermion',
-          text: 'Hi there! I am HERMION from EchoSphere AI. What brings you to our platform today, and how big is your sales team?',
+          text: "Hi, I'm HERMION, your intelligent voice work assistant. How can I help you today?",
         },
       ]);
     }
@@ -54,7 +58,11 @@ export default function LiveCallPage() {
 
     if (currentCallId) {
       try {
-        await hermionApi.endCall(currentCallId, { outcome: 'completed' });
+        if (currentAgentId) {
+          await hermionApi.stopAgent(currentAgentId, sessionId, currentCallId);
+        } else {
+          await hermionApi.endCall(currentCallId, { outcome: 'completed' });
+        }
         // Fetch summary
         setTimeout(async () => {
           const sum = await hermionApi.getSummary(currentCallId);
@@ -65,6 +73,7 @@ export default function LiveCallPage() {
         console.error('Error ending call:', err);
       }
     }
+    setCurrentAgentId('');
   };
 
   const sendTurn = async (e) => {
@@ -86,7 +95,7 @@ export default function LiveCallPage() {
         content: t.text,
       }));
 
-      const res = await hermionApi.sendLLMTurn(history, '', currentCallId);
+      const res = await hermionApi.sendLLMTurn(history, currentCallId, sessionId, currentAgentId);
       const choice = res.choices?.[0]?.message?.content || 'I understand. How else can I help?';
       const toolsUsed = res.x_executed_tools || [];
 
@@ -132,7 +141,7 @@ export default function LiveCallPage() {
               🎙️
             </div>
             <div>
-              <h2 className="font-heading font-bold text-2xl text-white">Live Voice Call Session</h2>
+              <h2 className="font-heading font-bold text-2xl text-white">Live Voice Session</h2>
               <div className="flex items-center gap-2 mt-1">
                 {isConnected && (
                   <span className="relative flex h-2.5 w-2.5">
@@ -153,14 +162,14 @@ export default function LiveCallPage() {
                 onClick={startCall}
                 className="px-10 py-4 rounded-xl bg-accent text-black font-bold text-lg hover:bg-accentHover transition-all shadow-[0_0_30px_rgba(106,227,1,0.4)] hover:shadow-[0_0_50px_rgba(106,227,1,0.6)] hover:-translate-y-0.5"
               >
-                Connect Call
+                Start Voice Session
               </button>
             ) : (
               <button
                 onClick={endCall}
                 className="px-10 py-4 rounded-xl bg-red-600/20 text-red-400 border border-red-500/50 font-bold text-lg hover:bg-red-600 hover:text-white transition-all shadow-[0_0_30px_rgba(220,38,38,0.2)] hover:shadow-[0_0_40px_rgba(220,38,38,0.5)]"
               >
-                End Call
+                Stop Voice Session
               </button>
             )}
           </div>
@@ -179,7 +188,7 @@ export default function LiveCallPage() {
               type="text"
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
-              placeholder="Type your turn to HERMION (e.g. 'How much does your Pro plan cost?')..."
+              placeholder="Type a test turn to HERMION..."
               className="flex-1 px-6 py-4 rounded-2xl bg-black/40 border border-white/10 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 font-body shadow-inner transition-all"
             />
             <button
@@ -193,7 +202,7 @@ export default function LiveCallPage() {
         )}
       </main>
 
-      {/* Post Call Intelligence Modal */}
+      {/* Post-session summary */}
       {showSummary && summary && (
         <SummaryModal summary={summary} onClose={() => setShowSummary(false)} />
       )}

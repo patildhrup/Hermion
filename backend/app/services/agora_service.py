@@ -43,7 +43,7 @@ class AgoraConversationalAIService:
             "Content-Type": "application/json"
         }
 
-    def start_agent_session(self, channel_name: str, lead_id: str = "") -> Dict[str, Any]:
+    def start_agent_session(self, channel_name: str) -> Dict[str, Any]:
         """Start an Agora Conversational AI Agent session."""
         public_url = settings.get_public_url()
         llm_url = f"{public_url}/llm"
@@ -59,9 +59,9 @@ class AgoraConversationalAIService:
                 "remote_rtc_uids": ["*"],
                 "llm": {
                     "url": llm_url,
-                    "model": "hermion-sales-agent",
-                    "system_prompt": "You are HERMION, an AI Sales Agent.",
-                    "greeting": "Hello! I am HERMION from EchoSphere AI sales. How can I help you today?"
+                    "model": "hermion-work-assistant",
+                    "system_prompt": "You are HERMION, a voice-first workplace AI assistant.",
+                    "greeting": "Hello! I am HERMION, your intelligent voice work assistant. How can I help you today?"
                 },
                 "tts": {
                     "vendor": "elevenlabs",
@@ -95,7 +95,7 @@ class AgoraConversationalAIService:
             "channel_name": channel_name,
             "agent_rtc_uid": 1001,
             "llm_url": llm_url,
-            "message": "Agora Conversational AI agent session initiated successfully."
+            "message": "Agora Conversational AI voice session initiated successfully."
         }
 
     def stop_agent_session(self, agent_id: str) -> Dict[str, Any]:

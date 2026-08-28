@@ -29,7 +29,11 @@ export const hermionApi = {
 
   // Agora AI & Voice
   getAgoraToken: (channel, uid = '0') => request(`/agora/token?channel=${encodeURIComponent(channel)}&uid=${uid}`),
-  startAgent: (channel_name, lead_id = '') => request('/agora/start-agent', { method: 'POST', body: JSON.stringify({ channel_name, lead_id }) }),
+  startAgent: (channel_name, session_id = '', call_id = '') =>
+    request('/agora/start-agent', { method: 'POST', body: JSON.stringify({ channel_name, session_id, call_id }) }),
+  stopAgent: (agent_id, session_id = '', call_id = '') =>
+    request('/agora/stop-agent', { method: 'POST', body: JSON.stringify({ agent_id, session_id, call_id }) }),
+  getVoiceSession: (agentId) => request(`/agora/sessions/${agentId}`),
 
   // CRM Leads
   getLeads: () => request('/leads'),
@@ -44,8 +48,8 @@ export const hermionApi = {
   getSummary: (callId) => request(`/calls/${callId}/summary`),
 
   // Direct LLM Turn (with optional MongoDB session tracking)
-  sendLLMTurn: (messages, leadId = '', callId = '', sessionId = '') =>
-    request('/llm', { method: 'POST', body: JSON.stringify({ messages, lead_id: leadId, call_id: callId, session_id: sessionId }) }),
+  sendLLMTurn: (messages, callId = '', sessionId = '', agentId = '') =>
+    request('/llm', { method: 'POST', body: JSON.stringify({ messages, call_id: callId, session_id: sessionId, agent_id: agentId }) }),
 
   // FastMCP Tools List
   getMcpTools: () => request('/mcp/tools'),
@@ -62,4 +66,3 @@ export const hermionApi = {
   deleteConversation: (sessionId, userId) =>
     request(`/conversations/${sessionId}?user_id=${encodeURIComponent(userId)}`, { method: 'DELETE' }),
 };
-

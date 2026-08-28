@@ -18,8 +18,8 @@ export default function SummaryModal({ summary, onClose }) {
             📊
           </div>
           <div>
-            <h3 className="font-heading font-bold text-2xl text-white">Call Intelligence</h3>
-            <p className="text-xs font-mono text-textMuted">Post-call AI auto-generation</p>
+            <h3 className="font-heading font-bold text-2xl text-white">Session Summary</h3>
+            <p className="text-xs font-mono text-textMuted">Post-session voice recap</p>
           </div>
         </div>
 
@@ -36,7 +36,7 @@ export default function SummaryModal({ summary, onClose }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 rounded-2xl bg-black/30 border border-white/5 shadow-inner">
-              <h4 className="text-xs font-mono text-textMuted uppercase mb-2">Objections Handled</h4>
+              <h4 className="text-xs font-mono text-textMuted uppercase mb-2">Detected Topics</h4>
               <div className="flex flex-wrap gap-1.5 mt-1">
                 {summary.objections_raised && summary.objections_raised.length > 0 ? (
                   summary.objections_raised.map((obj, i) => (
@@ -54,7 +54,7 @@ export default function SummaryModal({ summary, onClose }) {
             </div>
 
             <div className="p-4 rounded-2xl bg-black/30 border border-white/5 shadow-inner">
-              <h4 className="text-xs font-mono text-textMuted uppercase mb-2">Call Sentiment</h4>
+              <h4 className="text-xs font-mono text-textMuted uppercase mb-2">Session Sentiment</h4>
               <span className="inline-block mt-1 text-xs font-mono font-bold uppercase px-3 py-1.5 rounded-lg bg-accent/10 text-accent border border-accent/30 shadow-[0_0_10px_rgba(106,227,1,0.2)]">
                 {summary.sentiment || 'Positive'}
               </span>

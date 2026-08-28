@@ -23,7 +23,7 @@ export default function Navbar() {
           <div>
             <span className="font-heading font-black text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white to-textMuted group-hover:to-white transition-colors duration-300">HERMION</span>
             <span className="text-[10px] uppercase font-mono block text-accent tracking-[0.2em] -mt-1 opacity-80 group-hover:opacity-100 transition-opacity">
-              Voice AI Engine
+              Voice Work Assistant
             </span>
           </div>
         </Link>
@@ -71,4 +71,3 @@ export default function Navbar() {
     </header>
   );
 }
-

@@ -10,13 +10,13 @@ export default function LandingPage() {
     hermionApi.getMcpTools()
       .then(res => setTools(res || []))
       .catch(() => setTools([
-        { name: 'search_product_docs', description: 'Product knowledge Qdrant vector search' },
-        { name: 'search_pricing', description: 'Real-time tier and pricing limit lookup' },
-        { name: 'search_objection_playbook', description: 'Proven objection handling playbooks' },
-        { name: 'check_calendar_availability', description: 'Live Google/Calendly slot checker' },
-        { name: 'book_demo', description: 'Automated CRM booking & email confirmation' },
-        { name: 'update_lead_status', description: 'Mid-call qualification score updater' },
-        { name: 'escalate_to_human', description: 'Warm handoff to human SDR' },
+        { name: 'start_voice_session', description: 'Initialize a real-time Agora voice conversation' },
+        { name: 'stream_transcript', description: 'Maintain live transcript updates across the session' },
+        { name: 'interrupt_and_resume', description: 'Handle natural interruptions and turn-taking' },
+        { name: 'maintain_session_context', description: 'Preserve current conversation context per session' },
+        { name: 'route_to_backend_agent', description: 'Forward transcript turns to the FastAPI agent layer' },
+        { name: 'speak_mock_response', description: 'Return a simple test assistant reply for voice playback' },
+        { name: 'secure_credentials', description: 'Keep Agora and model credentials server-side via env vars' },
       ]));
   }, []);
 
@@ -31,15 +31,15 @@ export default function LandingPage() {
       {/* Hero Section */}
       <main className="flex-1 max-w-7xl mx-auto px-6 py-20 flex flex-col items-center justify-center text-center relative z-10 animate-fade-in-up">
         <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-accent/30 bg-accent/10 text-accent text-xs font-mono mb-10 shadow-[0_0_15px_rgba(106,227,1,0.2)] animate-pulse-glow">
-          <span className="text-sm">⚡</span> EchoSphere Hackathon — Real-Time Voice Sales Agent
+          <span className="text-sm">⚡</span> Real-Time Voice Workplace Assistant
         </div>
 
         <h1 className="font-heading font-black text-5xl md:text-7xl lg:text-8xl tracking-tight leading-[1.1] text-transparent bg-clip-text bg-gradient-to-b from-white via-[#E0E0E0] to-[#888] max-w-5xl drop-shadow-2xl">
-          Voice-Native AI Sales Rep That <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-[#95FF29]">Closes Deals</span> On Live Calls
+          Your Intelligent Voice Work Assistant for <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-[#95FF29]">Real-Time Conversations</span>
         </h1>
 
         <p className="mt-10 text-lg md:text-xl text-textMuted max-w-3xl font-light leading-relaxed">
-          HERMION gets on live Agora RTC voice calls with prospects, qualifies them, answers product and pricing questions grounded in Qdrant vector docs, handles objections, and books demos — under 300ms latency.
+          HERMION is a voice-first workplace assistant built on Agora real-time conversation flows. It starts and stops live voice sessions, shows transcript and listening state, handles interruptions naturally, and routes each turn through the FastAPI backend.
         </p>
 
         {/* CTA buttons */}
@@ -54,7 +54,7 @@ export default function LandingPage() {
             to="/dashboard"
             className="w-full sm:w-auto px-10 py-5 rounded-2xl glass-card text-white font-semibold text-lg hover:bg-white/10 transition-all duration-300 hover:-translate-y-1"
           >
-            📊 Launch CRM Dashboard
+            📊 Open Voice Workspace
           </Link>
         </div>
 
@@ -96,7 +96,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-glassBorder mt-20 py-10 text-center text-xs font-mono text-textMuted bg-black/40 backdrop-blur-md">
-        <p className="opacity-60">HERMION AI Sales Engine • Built for Agora Conversational AI Hackathon</p>
+        <p className="opacity-60">HERMION Voice Workspace • Real-time workplace assistant powered by Agora</p>
       </footer>
     </div>
   );
