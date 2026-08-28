@@ -17,12 +17,14 @@ def health_check():
 
 
 @router.get("/mcp/tools")
-def list_mcp_tools():
+async def list_mcp_tools():
     """List available MCP tools for introspection."""
+    tools = await hermion_mcp.list_tools()
     return [
         {
             "name": tool.name,
             "description": tool.description,
-            "parameters": tool.parameters.model_json_schema()
-        } for tool in hermion_mcp._tool_manager.list_tools()
+            "parameters": tool.parameters,
+        }
+        for tool in tools
     ]
